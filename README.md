@@ -3,16 +3,15 @@
 Detecting AI-generated images from the **Temporal Reconstruction Error (TRE)**
 of a diffusion model, classified by temporal / spatial attention.
 
-This repository holds the code, the **full-scale re-run of the experiment**, and
-the analysis of what the method actually measures. The headline finding is
-negative and is the point of the repository: as formulated, the TRE feature
-carries no usable signal, and we show why.
+This repository holds the code, the **full-scale re-run of the experiment**, the
+analysis of what the TRE feature measures under three reconstruction schemes,
+and three follow-up experiments on scheme C.
 
 ## Results
 
 GenImage. Train: SDv1.4, 30k fake + 30k real (seed 42), 20 epochs. Evaluation:
 all 8 generators, full test splits (12k each, 16k for sdv5). Identical
-classifier and hyperparameters in both conditions — the only difference is how
+classifier and hyperparameters in every condition — the only difference is how
 the reconstruction is driven.
 
 | Condition | Train acc | Held-out val acc | **Mean acc (8 generators)** |
@@ -22,9 +21,7 @@ the reconstruction is driven.
 | **C. Deterministic, η = 0** | — | 80.9% | **60.5%** |
 | **C + second inverter** (SD1.4 ++ SD1.5, 8 ch) | — | 80.2% | **62.5%** |
 
-Scheme C is the one that measures something real, but the mean hides the actual
-result — it splits sharply by generator family, and adding a second inverter
-from the *same* family does not move it:
+Grouped by generator family:
 
 | Grouped | Scheme C | C + second inverter |
 | --- | --- | --- |
@@ -45,12 +42,6 @@ The three SD-derived generators are marked ◆:
 | C: η = 0 — AP | **.863** | **.869** | **.861** | .510 | .360 | .481 | .560 | .542 | — |
 | C + 2nd inverter — acc | **79.3** | **79.2** | **78.2** | 52.9 | 45.5 | 53.8 | 55.3 | 55.9 | **62.5** |
 | C + 2nd inverter — AP | **.870** | **.877** | **.862** | .538 | .429 | .549 | .567 | .576 | — |
-
-**Condition A barely beats chance even in-domain (61.5%)** and drops to 54-60%
-on unseen generators. **Condition B is exactly chance everywhere** while fitting
-the training set to 96%. **Condition C works — but only inside the Stable
-Diffusion family**: 78-79% with AP 0.86 on sdv4/sdv5/wukong, chance elsewhere
-(biggan at 39.8% is below chance, i.e. anti-correlated).
 
 ## Why: the feature collapses either way
 
@@ -108,30 +99,70 @@ it does its own samples, so the learned direction points the wrong way. So the
 three schemes fail for three different reasons: A has no signal, B has signal
 buried in noise, C has signal that is specific to one generator family.
 
-Three follow-ups pinned down *why* C is family-bound, and each has its own file
-in [`results/`](results):
+## Follow-up experiments on scheme C
 
-- **Leave-one-generator-out** ([`logo.json`](results/logo.json)) — train on five
-  generators, test on the sixth, six times. Held-out accuracy is chance in every
-  split (mean 51.7%), and validation on the five *trained* generators only
-  reaches 51.8-58.2%. wukong falls from 78.5% to 50.4% once its training set is
-  the five non-SD generators. **Training diversity does not substitute for the
-  inverter's own family** — the bias lives in the feature, not the data mix.
-- **3-class head** ([`threeclass.json`](results/threeclass.json)) — predicting
-  real / diffusion-fake / GAN-fake removes biggan's inversion (39.8% → 63.4%,
-  AP 0.36 → 0.68). The anti-correlation was class structure, not noise.
-- **Two-inverter ensemble** ([`ensemble.json`](results/ensemble.json)) — SD 1.4
-  and SD 1.5 features concatenated on the channel axis. SD family unchanged
-  (78.8 → 78.9%), others barely move (49.5 → 52.7%). SD 1.5 alone scores the
-  same as SD 1.4 alone, so the two inverters see the same thing. The intended
-  second arm was SD 2.1, but every `stabilityai/*` repository is gated, so this
-  run cannot test a genuinely *different* family — which is exactly the
-  hypothesis that matters.
+Three experiments on why scheme C is family-bound, each with its own file in
+[`results/`](results).
 
-Chasing general detection from one model family's reconstruction error looks
-like the wrong axis — see
-[`docs/ideas-generalization.md`](docs/ideas-generalization.md) for what remains,
-and [`docs/REPRODUCTION.md`](docs/REPRODUCTION.md) to re-run any of it.
+**Leave-one-generator-out** ([`logo.json`](results/logo.json)). Train on five
+generators' test-half features (first half of each class, 30k), test on the
+sixth, six times; same architecture and hyperparameters.
+
+| Held-out generator | Trained on | Val acc (trained gens) | Held-out acc | Held-out AP |
+| --- | --- | --- | --- | --- |
+| adm | biggan, glide, midjourney, vqdm, wukong | 53.1 | 52.3 | 0.527 |
+| biggan | adm, glide, midjourney, vqdm, wukong | 54.0 | 53.0 | 0.534 |
+| glide | adm, biggan, midjourney, vqdm, wukong | 51.8 | 53.0 | 0.535 |
+| midjourney | adm, biggan, glide, vqdm, wukong | 53.4 | 53.4 | 0.538 |
+| vqdm | adm, biggan, glide, midjourney, wukong | 58.2 | 48.0 | 0.488 |
+| wukong | adm, biggan, glide, midjourney, vqdm | 52.8 | 50.4 | 0.504 |
+| **mean** | | | **51.7** | |
+
+Held-out accuracy is 48.0-53.4% in every split, and validation on the five
+*trained* generators is 51.8-58.2%. wukong falls from 78.5% (sdv1.4-only
+training) to 50.4% once its training set is the five non-SD generators: the
+family bias is a property of the η = 0 feature, not of the training mix.
+
+**3-class head** ([`threeclass.json`](results/threeclass.json)). Real /
+diffusion-fake / GAN-fake, trained on the first half of each of the six test
+generators' features (36k; biggan is the only GAN); binary accuracy collapses
+the two fake classes. Per-generator numbers are over *both* halves, i.e. they
+include the training half; the held-out binary accuracy (second halves only) is
+54.3%.
+
+| Generator | 3-class acc | Binary acc | AP | Scheme C binary acc |
+| --- | --- | --- | --- | --- |
+| adm | 58.4 | 60.0 | 0.628 | 50.6 |
+| biggan | 44.2 | 63.4 | 0.683 | 39.8 |
+| glide | 56.8 | 60.8 | 0.643 | 49.1 |
+| midjourney | 57.7 | 58.6 | 0.617 | 54.8 |
+| vqdm | 57.2 | 57.3 | 0.601 | 53.3 |
+| wukong | 57.2 | 57.4 | 0.592 | 78.5 |
+
+biggan's below-chance result under scheme C (39.8%) becomes 63.4% / AP 0.68 once
+GAN-fake is its own class.
+
+**Two-inverter ensemble** ([`ensemble.json`](results/ensemble.json)). SD 1.4
+and SD 1.5 features concatenated on the channel axis, `(T=20, 8, 32, 32)`,
+trained on the sdv1.4 split (60k). Per-generator numbers are in the main table
+above; the single-inverter controls:
+
+| | Ensemble (8 ch) | SD 1.4 only | SD 1.5 only |
+| --- | --- | --- | --- |
+| Val acc | 80.2 | 80.9 | 79.8 |
+| sdv4 acc | 79.3 | 78.5 | 78.7 |
+| sdv5 acc | 79.2 | 79.2 | 78.7 |
+
+SD family 78.8% → 78.9%, other generators 49.5% → 52.7%, biggan 39.8% → 45.5%.
+SD 1.5 is a continuation of SD 1.4, so both inverters are the same family. The
+intended second inverter was SD 2.1, but every `stabilityai/*` repository is
+gated (anonymous access returns 401), so a genuinely different family
+(pixel-space ADM, or a GAN inverter) has not been tested — that is the
+hypothesis the follow-up needs.
+
+Next directions for general detection:
+[`docs/ideas-generalization.md`](docs/ideas-generalization.md). Re-running any
+of the above: [`docs/REPRODUCTION.md`](docs/REPRODUCTION.md).
 
 Baseline numbers (STRE, NPR, DIRE, LaRE) are **not reproduced here**; cite them
 from their original papers, noting protocol differences.
@@ -145,7 +176,7 @@ from their original papers, noting protocol differences.
    `over_denosing()` reconstructs prefix by prefix and returns the `T` step-wise
    latent differences, a `(T=20, 4, 32, 32)` tensor per image.
 3. **Classifiers** ([`src/models/`](src/models)) — `resnet_baseline.py` holds the
-   temporal-MHSA x spatial-focusing -> ResNet18 detector used in both conditions;
+   temporal-MHSA x spatial-focusing -> ResNet18 detector used in every condition;
    `dnsamnet.py` / `attention.py` / `temporal_attention.py` /
    `spatial_attention.py` hold the hand-written attention variant (DNSAMNet),
    which needs a different feature type (U-Net attention maps) and is untested.
@@ -160,7 +191,7 @@ are the original notebook pipeline and are not called by the experiments.
 ├── src/                  # library: inversion, TRE features, datasets, models
 ├── experiments/          # list building, TRE extraction, trainers (entry points)
 ├── scripts/              # server bootstrap and multi-GPU shard / stage runners
-├── results/              # measured accuracy/AP per generator, both conditions
+├── results/              # measured accuracy/AP per generator, every experiment
 └── docs/                 # analysis of the collapse, follow-up ideas, project report
 ```
 
