@@ -81,7 +81,7 @@ from different prefixes of that noise sequence.
 Either way the stochastic reverse process destroys the quantity the method
 intends to measure. Full derivation, measurements and follow-up directions:
 [`docs/finding-tre-collapse.md`](docs/finding-tre-collapse.md) and
-[`docs/ideas-generalization.md`](docs/ideas-generalization.md).
+[`docs/follow-up.md`](docs/follow-up.md).
 
 **Scheme C (`η = 0`) — the feature works, the generalisation does not.**
 Dropping the stochastic term leaves the prefix differences to reflect only DDIM
@@ -154,32 +154,24 @@ above; the single-inverter controls:
 | sdv5 acc | 79.2 | 79.2 | 78.7 |
 
 SD family 78.8% → 78.9%, other generators 49.5% → 52.7%, biggan 39.8% → 45.5%.
-SD 1.5 is a continuation of SD 1.4, so both inverters are the same family. The
-intended second inverter was SD 2.1, but every `stabilityai/*` repository is
-gated (anonymous access returns 401), so a genuinely different family
-(pixel-space ADM, or a GAN inverter) has not been tested — that is the
-hypothesis the follow-up needs.
+SD 1.5 is a continuation of SD 1.4, so both inverters are the same family (SD 2.1
+was the intended second inverter; `stabilityai/*` repositories are gated).
 
-Next directions for general detection:
-[`docs/ideas-generalization.md`](docs/ideas-generalization.md). Re-running any
-of the above: [`docs/REPRODUCTION.md`](docs/REPRODUCTION.md).
+Open hypotheses and next directions are collected in
+[`docs/follow-up.md`](docs/follow-up.md).
 
 Baseline numbers (STRE, NPR, DIRE, LaRE) are **not reproduced here**; cite them
 from their original papers, noting protocol differences.
 
-## Method / code layout
+## Code layout
 
-1. **Diffusion inversion** ([`src/data/inversion.py`](src/data/inversion.py)) —
-   edit-friendly DDPM/DDIM inversion: `inversion_forward_process` records the
-   noise sequence, `inversion_reverse_process` reconstructs from it.
-2. **TRE features** ([`src/data/tre_features.py`](src/data/tre_features.py)) —
-   `over_denosing()` reconstructs prefix by prefix and returns the `T` step-wise
-   latent differences, a `(T=20, 4, 32, 32)` tensor per image.
-3. **Classifiers** ([`src/models/`](src/models)) — `resnet_baseline.py` holds the
-   temporal-MHSA x spatial-focusing -> ResNet18 detector used in every condition;
-   `dnsamnet.py` / `attention.py` / `temporal_attention.py` /
-   `spatial_attention.py` hold the hand-written attention variant (DNSAMNet),
-   which needs a different feature type (U-Net attention maps) and is untested.
+```
+├── src/                  # library: inversion, TRE features, datasets, models
+├── experiments/          # list building, TRE extraction, trainers (entry points)
+├── scripts/              # server bootstrap and multi-GPU shard / stage runners
+├── results/              # measured accuracy/AP per generator, every experiment
+└── docs/                 # analysis of the collapse, reproduction guide, follow-up, project report
+```
 
 The experiment scripts import `src/config.py`, `src/data/inversion.py` and
 `src/models/resnet_baseline.py`; `experiments/extract_tre.py` is the batched
@@ -187,47 +179,9 @@ port of `src/data/tre_features.py`. The remaining `src/` modules (`train.py`,
 `eval.py`, `data/build_dataset.py`, `data/dataset.py` and the DNSAMNet models)
 are the original notebook pipeline and are not called by the experiments.
 
-```
-├── src/                  # library: inversion, TRE features, datasets, models
-├── experiments/          # list building, TRE extraction, trainers (entry points)
-├── scripts/              # server bootstrap and multi-GPU shard / stage runners
-├── results/              # measured accuracy/AP per generator, every experiment
-└── docs/                 # analysis of the collapse, follow-up ideas, project report
-```
-
 ## Reproducing
 
-Data is not included. Download GenImage from its
-[official release](https://github.com/GenImage-Dataset/GenImage) (an HF mirror of
-the same archives exists at `jzousz/GenImage`), then see
-[`experiments/README.md`](experiments/README.md) for the exact pipeline:
-
-```bash
-python experiments/build_lists.py                       # train/test file lists
-python experiments/extract_tre.py --list ... --out ...  # add --fresh for condition B
-python experiments/train_eval.py --features ...         # train + per-generator eval
-```
-
-Feature extraction is the bottleneck: the prefix construction costs 250 UNet
-calls per image (~0.83 img/s per L40S at batch 48), i.e. roughly 20 GPU-hours
-per condition for the 160k images. Precomputed `.pt` features and trained
-weights are not distributed.
-
-Environment: Python 3.11, torch 2.3.1+cu121, torchvision 0.18.1,
-diffusers 0.31.0, transformers 4.44.2, numpy<2. Features are computed in fp32
-and stored as fp16 — condition A's signal lives at the 1e-4 level, so lowering
-the compute precision destroys it.
-
-## Fixed while re-running
-
-Both bugs were latent because the original notebooks never completed a run:
-
-- `AttentionClassifier` passed a 5-D `(B,T,C,H,W)` tensor to `SpatialFocusing`,
-  which unpacks four dimensions — now the channel axis is averaged first.
-- `build_dataset.py` wrote features to the wrong class directory: GenImage class
-  dirs sort as `[ai, nature]`, so indexing `LABEL_MAP` by the numeric label put
-  fakes under `real/` and vice versa — now mapped by class name.
-
-Also: accuracy thresholding at `> 0` on a sigmoid output (always true) was
-corrected to `> 0.5`; `SpatialFocusing` referenced an undefined `num_head`;
-hard-coded machine paths moved to `src/config.py`.
+Data (GenImage), features and weights are not distributed. Environment, data
+preparation, extraction cost and every run command:
+[`docs/REPRODUCTION.md`](docs/REPRODUCTION.md); bugs fixed in the original code:
+its section 7.

@@ -306,13 +306,4 @@ never completed a run):
 
 ## 8. Open threads
 
-`ideas-generalization.md` carries the full list. The short version after
-experiments 1 and 3:
-
-- The family bond is a property of the feature, so multi-inverter ensembles
-  only help if the inverters differ in *family*, not in version — gated
-  `stabilityai` repositories are the practical obstacle.
-- The 3-class result suggests structure worth exploiting: a GAN/diffusion split
-  before the real/fake decision.
-- Nothing here has been tested under JPEG, resize or blur. Any generalisation
-  claim needs that table.
+See [`follow-up.md`](follow-up.md).
