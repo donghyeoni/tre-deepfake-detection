@@ -2,15 +2,17 @@
 
 Scripts used to re-run the full-scale experiment (GenImage; train: sdv1.4
 30k real + 30k fake, seed 42; test: 8 generators x 12k) on a 4x L40S server.
-Paths are server-specific — adjust the constants at the top of each script
-before reuse.
+Paths resolve from `$TRE_HOME` (default `~/tre`); the shell runners in
+`../scripts/` also read `NSHARDS` (GPU count, default 4) and, for
+`orchestrate.sh`, `TRAIN_GPU` (default 2). `scripts/bootstrap.sh` copies these
+scripts flat into `$TRE_HOME`, where they are run.
 
 | File | Role |
 | --- | --- |
 | `build_lists.py` | Build train/test list files (`<path>\t<label>`) from unpacked GenImage |
 | `extract_tre.py` | Batched TRE extraction. Default = paper-faithful z_t replay; `--fresh` = common-random-noise reconstruction; `--eta0` = fully deterministic DDIM round trip. `--shard k --nshards n` for multi-GPU splits |
-| `driver_gpu.sh` / `driver_gpu_fresh.sh` | Per-GPU shard runners (train list, then each generator's test list) |
-| `orchestrate.sh` | Stage chain: wait for train features → train → wait for extraction → eval (`results.json`) → fresh extraction → fresh train/eval (`results_fresh.json`) |
+| `../scripts/driver_gpu.sh` / `driver_gpu_fresh.sh` | Per-GPU shard runners (train list, then each generator's test list) |
+| `../scripts/orchestrate.sh` | Stage chain: wait for train features → train → wait for extraction → eval (`results.json`) → fresh extraction → fresh train/eval (`results_fresh.json`) |
 | `logo_train.py` | Experiment 1: leave-one-generator-out over the six test generators (`--holdout <gen>`) |
 | `threeclass_train.py` | Experiment 3: real / diffusion-fake / GAN-fake head on the same features |
 | `ensemble_train.py` | Experiment 2: two inverters' features concatenated on the channel axis (`--mode ensemble`), or the second inverter alone (`--mode b`) |

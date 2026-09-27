@@ -1,7 +1,6 @@
 # TRE ≈ 0 수렴 근거 정리
 
-> tre-diffusion-image-detection 재현 실험 중 확인된 핵심 발견.
-> 나중에 리포 `docs/`에 포함하거나 README Notes로 요약 예정.
+> tre-deepfake-detection 재현 실험 중 확인된 핵심 발견.
 
 ## 주장
 

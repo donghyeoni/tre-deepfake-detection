@@ -25,7 +25,7 @@ else
   log "cloning $REPO_URL"
   git clone -q "$REPO_URL" repo
 fi
-cp repo/experiments/*.py .
+cp repo/experiments/*.py repo/scripts/driver_gpu*.sh repo/scripts/orchestrate.sh .
 
 # --- environment ------------------------------------------------------------
 # numpy<2 (np.trapz), diffusers 0.31 + transformers 4.44 (older diffusers calls

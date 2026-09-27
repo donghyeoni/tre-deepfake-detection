@@ -150,9 +150,16 @@ from their original papers, noting protocol differences.
    `spatial_attention.py` hold the hand-written attention variant (DNSAMNet),
    which needs a different feature type (U-Net attention maps) and is untested.
 
+The experiment scripts import `src/config.py`, `src/data/inversion.py` and
+`src/models/resnet_baseline.py`; `experiments/extract_tre.py` is the batched
+port of `src/data/tre_features.py`. The remaining `src/` modules (`train.py`,
+`eval.py`, `data/build_dataset.py`, `data/dataset.py` and the DNSAMNet models)
+are the original notebook pipeline and are not called by the experiments.
+
 ```
 ├── src/                  # library: inversion, TRE features, datasets, models
-├── experiments/          # the full-scale re-run harness (multi-GPU, orchestrated)
+├── experiments/          # list building, TRE extraction, trainers (entry points)
+├── scripts/              # server bootstrap and multi-GPU shard / stage runners
 ├── results/              # measured accuracy/AP per generator, both conditions
 └── docs/                 # analysis of the collapse, follow-up ideas, project report
 ```

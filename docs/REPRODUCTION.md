@@ -34,14 +34,14 @@ different source.
 
 ## 1. Environment
 
-On a freshly assigned machine, `experiments/bootstrap.sh` does everything in this
+On a freshly assigned machine, `scripts/bootstrap.sh` does everything in this
 section and the next — venv, repo, archives, file lists — and prints the
 extraction command to run afterwards:
 
 ```bash
 git clone https://github.com/donghyeoni/tre-deepfake-detection
-bash tre-deepfake-detection/experiments/bootstrap.sh          # env + test data (25 GB)
-WITH_TRAIN=1 bash tre-deepfake-detection/experiments/bootstrap.sh   # + train data (96 GB)
+bash tre-deepfake-detection/scripts/bootstrap.sh          # env + test data (25 GB)
+WITH_TRAIN=1 bash tre-deepfake-detection/scripts/bootstrap.sh   # + train data (96 GB)
 ```
 
 Every script resolves paths from **`$TRE_HOME`** (default `~/tre`); nothing is
